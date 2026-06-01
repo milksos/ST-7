@@ -1,86 +1,67 @@
 import java.time.Duration;
 
 import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class App {
-    private static final String PASSWORD_GENERATOR_URL =
+    private static final String PASSWORD_GENERATOR_PAGE =
             "https://www.calculator.net/password-generator.html";
 
     public static void main(String[] args) {
-        configureChromeDriverPath();
+        applyChromeDriverPath();
 
-        WebDriver webDriver = new ChromeDriver();
+        WebDriver driver = new ChromeDriver();
+        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(5));
+
         try {
-            runTask1(webDriver);
-            Task2.printClientIp(webDriver);
-            Task3.printForecastAndSave(webDriver);
-        } catch (Exception e) {
-            System.out.println("Error");
-            System.out.println(e.toString());
+            runPasswordTask(driver);
+            Task2.printClientIp(driver);
+            Task3.printForecastAndSave(driver);
+        } catch (Exception exception) {
+            System.out.println("Application error");
+            System.out.println(exception.getMessage());
         } finally {
-            webDriver.quit();
+            driver.quit();
         }
     }
 
-    private static void runTask1(WebDriver webDriver) {
-        webDriver.get(PASSWORD_GENERATOR_URL);
+    private static void runPasswordTask(WebDriver driver) {
+        driver.get(PASSWORD_GENERATOR_PAGE);
 
-        WebDriverWait wait = new WebDriverWait(webDriver, Duration.ofSeconds(15));
-        wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName("body")));
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+        WebElement passwordBlock = wait.until(
+                ExpectedConditions.visibilityOfElementLocated(By.id("resultid")));
 
-        String password = extractGeneratedPassword(webDriver);
-        System.out.println("Задание 1. Сгенерированный пароль: " + password);
+        String generatedPassword = readPassword(passwordBlock);
+        System.out.println("[Task 1] Generated password: " + generatedPassword);
     }
 
-    private static String extractGeneratedPassword(WebDriver webDriver) {
-        try {
-            WebDriverWait wait = new WebDriverWait(webDriver, Duration.ofSeconds(10));
-            wait.until(ExpectedConditions.visibilityOfElementLocated(By.cssSelector("#resultid .verybigtext b")));
+    private static String readPassword(WebElement passwordBlock) {
+        String passwordText = passwordBlock.getText()
+                .replace("Your new password:", "")
+                .trim();
 
-            String password = (String) ((JavascriptExecutor) webDriver).executeScript(
-                    "var element = document.querySelector('#resultid .verybigtext b');" +
-                    "return element ? element.textContent.trim() : null;");
-
-            if (password != null && !password.isEmpty()) {
-                return password;
-            }
-        } catch (TimeoutException e) {
-            // If the page layout changes, fall back to a broader DOM query below.
+        if (!passwordText.isEmpty()) {
+            return passwordText;
         }
 
-        String password = (String) ((JavascriptExecutor) webDriver).executeScript(
-                "var selectors = ['#resultid .verybigtext b', '#resultid .verybigtext', '#resultid b'];" +
-                "for (var i = 0; i < selectors.length; i++) {" +
-                "  var element = document.querySelector(selectors[i]);" +
-                "  if (element && element.textContent && element.textContent.trim()) {" +
-                "    return element.textContent.trim();" +
-                "  }" +
-                "}" +
-                "return null;");
-
-        if (password != null && !password.isEmpty()) {
-            return password;
-        }
-
-        throw new IllegalStateException("Password was not found on the page.");
+        throw new IllegalStateException("Password text was not found on the generator page.");
     }
 
-    private static void configureChromeDriverPath() {
-        String systemPropertyPath = System.getProperty("chrome.driver.path");
-        if (systemPropertyPath != null && !systemPropertyPath.trim().isEmpty()) {
-            System.setProperty("webdriver.chrome.driver", systemPropertyPath.trim());
+    private static void applyChromeDriverPath() {
+        String propertyPath = System.getProperty("chrome.driver.path");
+        if (propertyPath != null && !propertyPath.trim().isEmpty()) {
+            System.setProperty("webdriver.chrome.driver", propertyPath.trim());
             return;
         }
 
-        String envPath = System.getenv("CHROME_DRIVER_PATH");
-        if (envPath != null && !envPath.trim().isEmpty()) {
-            System.setProperty("webdriver.chrome.driver", envPath.trim());
+        String environmentPath = System.getenv("CHROME_DRIVER_PATH");
+        if (environmentPath != null && !environmentPath.trim().isEmpty()) {
+            System.setProperty("webdriver.chrome.driver", environmentPath.trim());
         }
     }
 }
